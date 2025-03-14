@@ -189,7 +189,7 @@ git_sparse_clone main "https://github.com/NueXini/NueXini_Packages" "NueXini-adb
 git_sparse_clone master "https://github.com/QiuSimons/luci-app-daed" "QiuSimons" daed luci-app-daed
 git_sparse_clone rebase "https://github.com/QiuSimons/luci-app-daed-next" "QiuSimons-next" daed-next luci-app-daed-next
 git_sparse_clone master "https://github.com/immortalwrt/luci" "immortalwrt-luci" applications/luci-app-frpc applications/luci-app-frps applications/luci-app-syncdial applications/luci-app-nps
-
+git_sparse_clone main "https://github.com/nikkinikki-org/OpenWrt-nikki" "nikki" nikki luci-app-nikki
 rm -rf openssl
 mv -n openwrt-package/* ./ ; rm -Rf openwrt-package
 mv -n openwrt-app-actions/applications/* ./;rm -rf openwrt-app-actions
