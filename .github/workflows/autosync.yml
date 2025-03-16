@@ -6,57 +6,53 @@ on:
       - '.github/packages.sh'
   workflow_dispatch:
   schedule:
-    - cron: '0 */4 * * *'
-
+    - cron:  '0 */4 * * *'
+        
 jobs:
   autosync:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout Git Repository
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_TOKEN }}
-          fetch-depth: 0
           persist-credentials: true
 
       - name: Resync Code
         run: |
-          chmod +x .github/packages.sh
-          ./.github/packages.sh
-
+          chmod +x packages.sh
+          ./packages.sh
+      
       - name: Push changes
-        env:
-          REPO_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-          git remote set-url origin "${REPO_URL}"
           
-          # 检测变更
+          # 添加认证信息到远程URL
+          git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
+          
+          status=$(git status -sb)
           if git diff --quiet; then
-            echo "无更新，无需提交"
-            exit 0
+              echo "插件无更新，无需提交。"
+          else
+          Emoji=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🍉" "💐" "🌴" "🚀" "🛸" "🗽" "⛅" "🌈" "🔥" "⛄" "🐶" "🏅" "🦄" "🐤")
+          git add .
+          git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+          for pkg in $(git diff-tree --no-commit-id --name-only HEAD | grep -v "naiveproxy"); do
+            if [ "$(grep "PKG_RELEASE" $pkg/Makefile)" ]; then
+              sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$(git rev-list --count main $pkg)/" $pkg/Makefile || true
+            fi
+          done
+          git reset --soft HEAD^
+          git add .
+          git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+          git push origin HEAD:main -f
           fi
 
-          # 拉取最新代码避免冲突
-          git pull origin main --rebase
-
-          # 生成随机 Emoji
-          Emoji=(🎉 🤞 ✨ 🎁 🎈 🎄 🎨 💋 🍓 🍕 🍉 💐 🌴 🚀 🛸 🗽 ⛅ 🌈 🔥 ⛄ 🐶 🏅 🦄 🐤)
-          RANDOM_EMOJI=${Emoji[$RANDOM % ${#Emoji[@]}]}
-
-          # 提交并推送
-          git add .
-          git commit -m "${RANDOM_EMOJI} Sync $(date +'%Y-%m-%d %H:%M:%S')"
-          git push origin HEAD:main -f
-
-      - name: Cleanup workflows
+      - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2
         with:
           retain_days: 0
           keep_minimum_runs: 3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
+
