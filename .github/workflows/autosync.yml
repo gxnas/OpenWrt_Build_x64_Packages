@@ -1,5 +1,9 @@
 name: autosync
 on:
+  push:
+    paths:
+      - '.github/workflows/autosync.yml'
+      - '.github/packages.sh'
   workflow_dispatch:
   schedule:
     - cron:  '0 */4 * * *'
@@ -16,26 +20,20 @@ jobs:
           chmod +x packages.sh
           ./packages.sh
       
-      - name: Commit
+      - name: Push changes
         run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
-
-          status=$(git status -sb)
-          if git diff --quiet; then
-              echo "插件无更新，无需提交。"
-          else
           Emoji=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🍉" "💐" "🌴" "🚀" "🛸" "🗽" "⛅" "🌈" "🔥" "⛄" "🐶" "🏅" "🦄" "🐤")
           git add .
-          git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(TZ='Asia/Shanghai' date +%Y-%m-%d" "%H:%M:%S)${Emoji[$[$RANDOM % ${#Emoji[@]}]]}"
-          fi
-        
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          branch: main
-          github_token: ${{ secrets.GH_TOKEN }}
-          force: true
+          git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+          for pkg in $(git diff-tree --no-commit-id --name-only HEAD | grep -v "naiveproxy"); do
+            if [ "$(grep "PKG_RELEASE" $pkg/Makefile)" ]; then
+              sed -i "s/PKG_RELEASE:=.*/PKG_RELEASE:=$(git rev-list --count main $pkg)/" $pkg/Makefile || true
+            fi
+          done
+          git reset --soft HEAD^
+          git add .
+          git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
+          git push -f
                 
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2
