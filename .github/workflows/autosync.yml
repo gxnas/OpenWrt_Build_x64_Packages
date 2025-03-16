@@ -13,8 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Git Repository
-        uses: actions/checkout@v2
-        
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          persist-credentials: true
+
       - name: Resync Code
         run: |
           chmod +x packages.sh
@@ -24,7 +27,10 @@ jobs:
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
-
+          
+          # 添加认证信息到远程URL
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          
           status=$(git status -sb)
           if git diff --quiet; then
               echo "插件无更新，无需提交。"
@@ -40,9 +46,9 @@ jobs:
           git reset --soft HEAD^
           git add .
           git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(date +%Y-%m-%d" "%H:%M:%S)"
-          git push -f
+          git push origin HEAD:main -f  # 明确推送到main分支
           fi
-                
+
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2
         with:
