@@ -34,7 +34,8 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           branch: main
-          github_token: ${{ secrets.GH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          force: true
                 
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2
