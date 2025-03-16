@@ -50,8 +50,8 @@ git clone --depth 1 https://github.com/lisaac/luci-app-dockerman && mv -n luci-a
 git clone --depth 1 https://github.com/sbwml/packages_lang_golang && mv -n packages_lang_golang/golang ./ ; rm -rf packages_lang_golang
 git clone --depth 1 https://github.com/linkease/istore && mv -n istore/luci/luci-app-store ./ ; rm -rf istore
 git clone --depth 1 https://github.com/sirpdboy/luci-app-lucky sirpdboy-lucik && mv -n sirpdboy-lucik/*lucky ./ ; rm -rf sirpdboy-lucik
-git clone --depth 1 https://github.com/sbwml/luci-app-mosdns && mv -n sbwml-mosdns/*mosdns ./ ; rm -rf sbwml-mosdns
-git clone --depth 1 https://github.com/sirpdboy/luci-app-ddns-go sbwml-ddns-go && mv -n sirpdboy-ddns-go/*ddns-go ./; rm -rf sirpdboy-ddns-go
+git clone --depth 1 https://github.com/sbwml/luci-app-mosdns sbwml-mosdns && mv -n sbwml-mosdns/*mosdns* ./ ; rm -rf sbwml-mosdns
+git clone --depth 1 https://github.com/sirpdboy/luci-app-ddns-go sbwml-ddns-go && mv -n sirpdboy-ddns-go/*ddns-go* ./; rm -rf sirpdboy-ddns-go
 git clone --depth=1 https://github.com/sbwml/luci-app-qbittorrent sirpdboy-qbittorrent && mv -n sirpdboy-qbittorrent/* ./ ; rm -rf sirpdboy-qbittorrent
 git clone --depth 1 https://github.com/messense/aliyundrive-webdav aliyundrive && mv -n aliyundrive/openwrt/* ./ ; rm -rf aliyundrive
 git clone --depth 1 https://github.com/fw876/helloworld && mv -n helloworld/luci-app-ssr-plus ./ ; rm -rf helloworld
