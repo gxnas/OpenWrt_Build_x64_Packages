@@ -1,0 +1,42 @@
+name: autosync
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '0 */4 * * *'
+        
+jobs:
+  autosync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Git Repository
+        uses: actions/checkout@v2
+        
+      - name: Resync Code
+        run: |
+          chmod +x packages.sh
+          ./packages.sh
+      
+      - name: Commit
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+          status=$(git status -sb)
+          if git diff --quiet; then
+              echo "插件无更新，无需提交。"
+          else
+          Emoji=("🎉" "🤞" "✨" "🎁" "🎈" "🎄" "🎨" "💋" "🍓" "🍕" "🍉" "💐" "🌴" "🚀" "🛸" "🗽" "⛅" "🌈" "🔥" "⛄" "🐶" "🏅" "🦄" "🐤")
+          git add .
+          git commit -m "${Emoji[$[$RANDOM % ${#Emoji[@]}]]} Sync $(TZ='Asia/Shanghai' date +%Y-%m-%d" "%H:%M:%S)${Emoji[$[$RANDOM % ${#Emoji[@]}]]}"
+          fi
+        
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          branch: main      
+                
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 0
+          keep_minimum_runs: 3
