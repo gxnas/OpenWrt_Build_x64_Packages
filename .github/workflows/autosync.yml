@@ -33,7 +33,8 @@ jobs:
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
-          branch: main      
+          branch: main
+          github_token: ${{ secrets.GH_TOKEN }}
                 
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@v2
