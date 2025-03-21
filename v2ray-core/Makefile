@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=v2ray-core
-PKG_VERSION:=5.29.2
-PKG_RELEASE:=1
+PKG_VERSION:=5.12.1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/v2fly/v2ray-core/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=aa9855fd4b7879f59fcbb2ec1be1efef98aacea316eaffc0928a7f0fa56adce6
+PKG_HASH:=fa1845d42b46c6b5046a8f95d49cc7a9175e40efc5c13b95174b4c556567aca1
 
 PKG_LICENSE:=MIT
 PKG_LICENSE_FILES:=LICENSE
@@ -62,9 +62,6 @@ define Package/v2ray-extra/description
   $(call Package/v2ray/description)
 
   This includes extra resources for v2ray-core.
-endef
-
-define Package/v2ray-core/conffiles
 endef
 
 define Package/v2ray-core/install
