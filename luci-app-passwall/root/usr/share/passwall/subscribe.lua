@@ -318,36 +318,6 @@ do
 					end
 				}
 			end
-		elseif node.protocol and node.protocol == '_urltest' then
-			local flag = "Sing-Box URLTest节点[" .. node_id .. "]列表"
-			local currentNodes = {}
-			local newNodes = {}
-			if node.urltest_node then
-				for k, node in pairs(node.urltest_node) do
-					currentNodes[#currentNodes + 1] = {
-						log = false,
-						node = node,
-						currentNode = node and uci:get_all(appname, node) or nil,
-						remarks = node,
-						set = function(o, server)
-							if o and server and server ~= "nil" then
-								table.insert(o.newNodes, server)
-							end
-						end
-					}
-				end
-			end
-			CONFIG[#CONFIG + 1] = {
-				remarks = flag,
-				currentNodes = currentNodes,
-				newNodes = newNodes,
-				set = function(o, newNodes)
-					if o then
-						if not newNodes then newNodes = o.newNodes end
-						uci:set_list(appname, node_id, "urltest_node", newNodes or {})
-					end
-				end
-			}
 		else
 			--前置代理节点
 			local currentNode = uci:get_all(appname, node_id) or nil
@@ -1303,21 +1273,19 @@ local function processData(szType, content, add_mode, add_from)
 end
 
 local function curl(url, file, ua, mode)
-	local curl_args = {
-		"-skL", "-w %{http_code}", "--retry 3", "--connect-timeout 3"
-	}
+	local curl_args = api.clone(api.curl_args)
 	if ua and ua ~= "" and ua ~= "curl" then
-		curl_args[#curl_args + 1] = '--user-agent "' .. ua .. '"'
+		table.insert(curl_args, '--user-agent "' .. ua .. '"')
 	end
-	local return_code, result
+	local return_code
 	if mode == "direct" then
-		return_code, result = api.curl_direct(url, file, curl_args)
+		return_code = api.curl_direct(url, file, curl_args)
 	elseif mode == "proxy" then
-		return_code, result = api.curl_proxy(url, file, curl_args)
+		return_code = api.curl_proxy(url, file, curl_args)
 	else
-		return_code, result = api.curl_auto(url, file, curl_args)
+		return_code = api.curl_auto(url, file, curl_args)
 	end
-	return tonumber(result)
+	return return_code
 end
 
 local function truncate_nodes(add_from)
@@ -1641,7 +1609,7 @@ local function parse_link(raw, add_mode, add_from, cfgid)
 		log('成功解析【' .. add_from .. '】节点数量: ' .. #node_list)
 	else
 		if add_mode == "2" then
-			log('获取到的【' .. add_from .. '】订阅内容为空，可能是订阅地址无效，或是网络问题，请诊断！')
+			log('获取到的【' .. add_from .. '】订阅内容为空，可能是订阅地址失效，或是网络问题，请请检测。')
 		end
 	end
 end
@@ -1716,27 +1684,23 @@ local execute = function()
 			local result = (not access_mode) and "自动" or (access_mode == "direct" and "直连访问" or (access_mode == "proxy" and "通过代理" or "自动"))
 			log('正在订阅:【' .. remark .. '】' .. url .. ' [' .. result .. ']')
 			local tmp_file = "/tmp/" .. cfgid
-			value.http_code = curl(url, tmp_file, ua, access_mode)
-			if value.http_code ~= 200 then
-				fail_list[#fail_list + 1] = value
-			else
-				if luci.sys.call("[ -f " .. tmp_file .. " ] && sed -i -e '/^[ \t]*$/d' -e '/^[ \t]*\r$/d' " .. tmp_file) == 0 then
-					local f = io.open(tmp_file, "r")
-					local stdout = f:read("*all")
-					f:close()
-					local raw_data = trim(stdout)
-					local old_md5 = value.md5 or ""
-					local new_md5 = luci.sys.exec("md5sum " .. tmp_file .. " 2>/dev/null | awk '{print $1}'"):gsub("\n", "")
-					os.remove(tmp_file)
-					if old_md5 == new_md5 then
-						log('订阅:【' .. remark .. '】没有变化，无需更新。')
-					else
-						parse_link(raw_data, "2", remark, cfgid)
-						uci:set(appname, cfgid, "md5", new_md5)
-					end
+			local raw = curl(url, tmp_file, ua, access_mode)
+			if raw == 0 then
+				local f = io.open(tmp_file, "r")
+				local stdout = f:read("*all")
+				f:close()
+				raw = trim(stdout)
+				local old_md5 = value.md5 or ""
+				local new_md5 = luci.sys.exec("[ -f " .. tmp_file .. " ] && md5sum " .. tmp_file .. " | awk '{print $1}' || echo 0")
+				os.remove(tmp_file)
+				if old_md5 == new_md5 then
+					log('订阅:【' .. remark .. '】没有变化，无需更新。')
 				else
-					fail_list[#fail_list + 1] = value
+					parse_link(raw, "2", remark, cfgid)
+					uci:set(appname, cfgid, "md5", new_md5)
 				end
+			else
+				fail_list[#fail_list + 1] = value
 			end
 			allowInsecure_default = nil
 			filter_keyword_mode_default = uci:get(appname, "@global_subscribe[0]", "filter_keyword_mode") or "0"
@@ -1751,7 +1715,7 @@ local execute = function()
 
 		if #fail_list > 0 then
 			for index, value in ipairs(fail_list) do
-				log(string.format('【%s】订阅失败，可能是订阅地址无效，或是网络问题，请诊断！[%s]', value.remark, tostring(value.http_code)))
+				log(string.format('【%s】订阅失败，可能是订阅地址失效，或是网络问题，请诊断！', value.remark))
 			end
 		end
 		update_node(0)

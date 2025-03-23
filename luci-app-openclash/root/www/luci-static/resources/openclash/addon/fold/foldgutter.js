@@ -21,7 +21,6 @@
       cm.off("fold", onFold);
       cm.off("unfold", onFold);
       cm.off("swapDoc", onChange);
-      cm.off("optionChange", optionChange);
     }
     if (val) {
       cm.state.foldGutter = new State(parseOptions(val));
@@ -32,7 +31,6 @@
       cm.on("fold", onFold);
       cm.on("unfold", onFold);
       cm.on("swapDoc", onChange);
-      cm.on("optionChange", optionChange);
     }
   });
 
@@ -120,10 +118,6 @@
     var folded = isFolded(cm, line);
     if (folded) folded.clear();
     else cm.foldCode(Pos(line, 0), opts);
-  }
-
-  function optionChange(cm, option) {
-    if (option == "mode") onChange(cm)
   }
 
   function onChange(cm) {

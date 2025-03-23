@@ -1,31 +1,33 @@
-module("luci.controller.AdGuardHome",package.seeall)
-local fs=require"nixio.fs"
-local http=require"luci.http"
-local uci=require"luci.model.uci".cursor()
+module("luci.controller.AdGuardHome", package.seeall)
+local fs = require "nixio.fs"
+local http = require "luci.http"
+local uci = require"luci.model.uci".cursor()
 function index()
 local page = entry({"admin", "services", "AdGuardHome"},alias("admin", "services", "AdGuardHome", "base"),_("AdGuard Home"))
-page.order = 10
+page.order = 11
 page.dependent = true
 page.acl_depends = { "luci-app-adguardhome" }
-entry({"admin","services","AdGuardHome","base"},cbi("AdGuardHome/base"),_("Base Setting"),1).leaf = true
-entry({"admin","services","AdGuardHome","log"},form("AdGuardHome/log"),_("Log"),2).leaf = true
-entry({"admin","services","AdGuardHome","manual"},cbi("AdGuardHome/manual"),_("Manual Config"),3).leaf = true
-entry({"admin","services","AdGuardHome","status"},call("act_status")).leaf=true
-entry({"admin", "services", "AdGuardHome", "check"}, call("check_update"))
-entry({"admin", "services", "AdGuardHome", "doupdate"}, call("do_update"))
-entry({"admin", "services", "AdGuardHome", "getlog"}, call("get_log"))
-entry({"admin", "services", "AdGuardHome", "dodellog"}, call("do_dellog"))
-entry({"admin", "services", "AdGuardHome", "reloadconfig"}, call("reload_config"))
-entry({"admin", "services", "AdGuardHome", "gettemplateconfig"}, call("get_template_config"))
+    entry({"admin", "services", "AdGuardHome", "base"}, cbi("AdGuardHome/base"),  _("Base Setting"), 1).leaf = true
+    entry({"admin", "services", "AdGuardHome", "log"}, form("AdGuardHome/log"), _("Log"), 2).leaf = true
+    entry({"admin", "services", "AdGuardHome", "manual"}, cbi("AdGuardHome/manual"), _("Manual Config"), 3).leaf = true
+    entry({"admin", "services", "AdGuardHome", "status"}, call("act_status")).leaf = true
+    entry({"admin", "services", "AdGuardHome", "check"}, call("check_update"))
+    entry({"admin", "services", "AdGuardHome", "doupdate"}, call("do_update"))
+    entry({"admin", "services", "AdGuardHome", "getlog"}, call("get_log"))
+    entry({"admin", "services", "AdGuardHome", "dodellog"}, call("do_dellog"))
+    entry({"admin", "services", "AdGuardHome", "reloadconfig"}, call("reload_config"))
+    entry({"admin", "services", "AdGuardHome", "gettemplateconfig"}, call("get_template_config"))
 end
 function get_template_config()
 	local b
 	local d=""
-	for cnt in io.lines("/tmp/resolv.conf.d/resolv.conf.auto") do
-		b=string.match (cnt,"^[^#]*nameserver%s+([^%s]+)$")
-		if (b~=nil) then
-			d=d.."  - "..b.."\n"
-		end
+	local file = "/tmp/resolv.conf.d/resolv.conf.auto"
+	if not fs.access(file) then
+		file = "/tmp/resolv.conf.auto"
+	end
+    for cnt in io.lines(file) do
+        b = string.match(cnt, "^[^#]*nameserver%s+([^%s]+)$")
+        if (b ~= nil) then d = d .. "  - " .. b .. "\n" end
 	end
 	local f=io.open("/usr/share/AdGuardHome/AdGuardHome_template.yaml", "r+")
 	local tbl = {}
@@ -68,10 +70,10 @@ function do_update()
 	else
 		arg=""
 	end
-	if fs.access("/var/run/update_core") then
-		if arg=="force" then
+	if arg=="force" then
 			luci.sys.exec("kill $(pgrep /usr/share/AdGuardHome/update_core.sh) ; sh /usr/share/AdGuardHome/update_core.sh "..arg.." >/tmp/AdGuardHome_update.log 2>&1 &")
-		end
+	
+
 	else
 		luci.sys.exec("sh /usr/share/AdGuardHome/update_core.sh "..arg.." >/tmp/AdGuardHome_update.log 2>&1 &")
 	end
@@ -92,13 +94,7 @@ function get_log()
 		return
 	end
 	http.prepare_content("text/plain; charset=utf-8")
-	local fdp
-	if fs.access("/var/run/lucilogreload") then
-		fdp=0
-		fs.remove("/var/run/lucilogreload")
-	else
-		fdp=tonumber(fs.readfile("/var/run/lucilogpos")) or 0
-	end
+    local fdp = tonumber(fs.readfile("/var/run/lucilogpos")) or 0
 	local f=io.open(logfile, "r+")
 	f:seek("set",fdp)
 	local a=f:read(2048000) or ""

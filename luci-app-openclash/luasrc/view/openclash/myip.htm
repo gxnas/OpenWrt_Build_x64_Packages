@@ -131,18 +131,6 @@
             text-overflow: ellipsis;
             text-align: left;
         }
-
-        :root[data-darkmode="true"] {
-            #eye-icon {
-                -webkit-filter: invert(1);
-                filter: invert(1);
-            }
-
-            #data-refresh-icon {
-                -webkit-filter: invert(1);
-                filter: invert(1);
-            }
-        }
     </style>
 </head>
 <body>
@@ -169,7 +157,7 @@
         </div>
         <div style="width: 52%">
             <p style="margin: 20px 0 20px 8%; padding: 0px !important;text-align: left; font-size: 25px; font-weight: bold;"><%:Website Access Check%>
-                <span style="float: right; margin: 0 10% 0 0;"><img src="/luci-static/resources/openclash/img/arrow-clockwise-light.svg" height="20px" title="<%:Refresh%>" alt="<%:Refresh%>" id="data-refresh-icon" onclick="return refresh_myip(this)" /></span>
+                <span style="float: right; margin: 0 10% 0 0;"><img src="/luci-static/resources/openclash/img/arrow-clockwise-light.svg" height="20px" title="<%:Refresh%>" alt="<%:Refresh%>" onclick="return refresh_myip(this)" /></span>
             </p>
             <p style="margin: 10px 0 0 8%; text-align: left; padding-left: 0px !important; padding-right: 0px !important;">
                 <span class="ip-state_title"><%:Baidu Search%>:</span><span id="http-baidu"></span><span id="ldtime-baidu"></span>
@@ -193,15 +181,6 @@
 </fieldset>
 </body>
     <script>
-        function addTitleOnOverflow() {
-            document.querySelectorAll('.ip-result, .ip-geo').forEach(function (span) {
-                if (span.scrollWidth > span.clientWidth && localStorage.getItem('privacy_my_ip') !== 'true') {
-                    span.setAttribute('title', span.textContent);
-                } else {
-                    span.removeAttribute('title');
-                }
-            });
-        }
         function ip_skk()
        {
         url2='https://ip.skk.moe';
@@ -253,28 +232,11 @@
                     return ip;
                 })();
 
-                fetch(`https://api.ip.sb/geoip/${anonymizedIp}`, {
+                fetch(`https://qqwry.api.skk.moe/${anonymizedIp}`, {
                 referrerPolicy: 'no-referrer-when-downgrade',
                 }).then(r => r.json())
                 .then(resp => {
-                    if ( resp.country && resp.country != '' && resp.isp && resp.isp != '' ) {
-                        $$.getElementById(elID).innerHTML = resp.country + ' ' + resp.isp;
-                    }
-                    else {
-                        fetch(`https://qqwry.api.skk.moe/${anonymizedIp}`, {
-                        referrerPolicy: 'no-referrer-when-downgrade',
-                        }).then(r => r.json())
-                        .then(resp => {
-                            if ( resp.geo.indexOf('skk.moe') == -1 ) {
-                                $$.getElementById(elID).innerHTML = resp.geo;
-                            }
-                            else {
-                                $$.getElementById(elID).innerHTML = 'Unknown';
-                            }
-                        })
-                    }
-                    //https://api.ip.sb/geoip/${anonymizedIp}
-                    //http://ip-api.com/json/${anonymizedIp}?lang=zh-CN
+                    $$.getElementById(elID).innerHTML = resp.geo;
                     //$$.getElementById(elID).innerHTML = `${resp.data.country} ${resp.data.regionName} ${resp.data.city} ${resp.data.isp}`;
                 })
             },
@@ -286,7 +248,6 @@
                             $$.getElementById('ip-ipipnet').innerHTML = `${data[0]}`;
                         };
                         $$.getElementById('ip-ipipnet-geo').innerHTML = `${data[1]}`;
-                        addTitleOnOverflow();
                     });
             },
             getIPApiIP: () => {
@@ -296,7 +257,6 @@
                             $$.getElementById('ip-ipapi').innerHTML = resp.data.ip;
                         };
                         IP.parseIPIpip(resp.data.ip, 'ip-ipapi-geo');
-                        addTitleOnOverflow();
                     })
             },
             //getSpeedIP: () => {
@@ -315,9 +275,8 @@
                         if (localStorage.getItem('privacy_my_ip') != 'true') {
                             $$.getElementById('ip-upaiyun').innerHTML = resp.data.remote_addr;
                         };
-                        $$.getElementById('ip-upaiyun-geo').innerHTML = resp.data.remote_addr_location.country + ' '  + resp.data.remote_addr_location.province + ' '  + resp.data.remote_addr_location.city + ' '  + resp.data.remote_addr_location.isp;
+                        $$.getElementById('ip-upaiyun-geo').innerHTML = resp.data.remote_addr_location.country + resp.data.remote_addr_location.province + resp.data.remote_addr_location.city + ' '  + resp.data.remote_addr_location.isp;
                         //IP.parseIPIpip(resp.data.remote_addr, 'ip-upaiyun-geo');
-                        addTitleOnOverflow();
                     })
             },
             getIpifyIP: () => {
@@ -330,7 +289,6 @@
                 })
                 .then(ip => {
                 	IP.parseIPIpip(ip, 'ip-ipify-geo');
-                    addTitleOnOverflow();
                 })
             }
         };
@@ -391,17 +349,14 @@
             if (localStorage.getItem('privacy_my_ip') != 'true') {
                 $$.getElementById('ip-pcol').innerHTML = data.ip;
             };
-            $$.getElementById('ip-pcol-geo').innerHTML = `${data.pro} ${data.city} ${data.region} ${pcisp[1]}`;
-            addTitleOnOverflow();
+            $$.getElementById('ip-pcol-geo').innerHTML = `${data.pro}${data.city}${data.region} ${pcisp[1]}`;
         };
 
         function getIpsbIP(data){
             if (localStorage.getItem('privacy_my_ip') != 'true') {
                 $$.getElementById('ip-ipsb').innerHTML = data.ip;
             };
-            //IP.parseIPIpip(data.ip, 'ip-ipsb-geo');
-            $$.getElementById('ip-ipsb-geo').innerHTML = `${data.country} ${data.isp}`;
-            addTitleOnOverflow();
+            IP.parseIPIpip(data.ip, 'ip-ipsb-geo');
         };
         
         //function ipCallback(data){
@@ -434,7 +389,7 @@
             
             var sbipScript= document.createElement("script");
             sbipScript.defer = "defer";
-            sbipScript.src=`https://api-ipv4.ip.sb/geoip?callback=getIpsbIP&z=${random}`;
+            sbipScript.src='https://api-ipv4.ip.sb/jsonip?callback=getIpsbIP';
             mypage.appendChild(sbipScript);
             
             //HTTP.runcheck();
@@ -456,7 +411,6 @@
                 $$.getElementById('ip-ipsb').innerHTML = '***.***.***.***';
                 $$.getElementById('ip-upaiyun').innerHTML = '***.***.***.***';
                 $$.getElementById('ip-ipify').innerHTML = '***.***.***.***';
-                addTitleOnOverflow();
             }
             else {
                 refresh_http = setInterval("HTTP.runcheck()", Math.floor(Math.random()*(10-5+1)+5)*1000);
@@ -481,7 +435,6 @@
                 $$.getElementById('ip-ipsb').innerHTML = '***.***.***.***';
                 $$.getElementById('ip-upaiyun').innerHTML = '***.***.***.***';
                 $$.getElementById('ip-ipify').innerHTML = '***.***.***.***';
-                addTitleOnOverflow();
             }
             else {
                 imgobj.src='/luci-static/resources/openclash/img/eye-light.svg';
@@ -515,7 +468,5 @@
     <script type="text/javascript">
         document.write('<script defer="defer" src="https://whois.pconline.com.cn/ipJson.jsp?callback=getPcolIP&z='+parseInt(Math.random() * 100000000)+'" type="text/javascript"><\/script>');
     </script>
-    <script type="text/javascript">
-        document.write('<script defer="defer" src="https://api-ipv4.ip.sb/geoip?callback=getIpsbIP&z='+parseInt(Math.random() * 100000000)+'" type="text/javascript"><\/script>');
-    </script>
+    <script defer="defer" src="https://api-ipv4.ip.sb/jsonip?callback=getIpsbIP"></script>
 </html>

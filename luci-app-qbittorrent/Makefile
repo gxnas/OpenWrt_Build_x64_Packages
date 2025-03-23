@@ -7,12 +7,12 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-qbittorrent
 PKG_VERSION:=1.0.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 LUCI_TITLE:=LuCI support for qBittorrent
 LUCI_PKGARCH:=all
 LUCI_DEPENDS:=+qbittorrent
 
-include $(TOPDIR)/feeds/luci/luci.mk
+include ../../luci.mk
 
 # call BuildPackage - OpenWrt buildroot signature

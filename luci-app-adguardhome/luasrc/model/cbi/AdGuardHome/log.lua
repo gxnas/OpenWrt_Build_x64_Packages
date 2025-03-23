@@ -1,7 +1,7 @@
-local fs=require"nixio.fs"
-local uci=require"luci.model.uci".cursor()
-local f,t
-f=SimpleForm("logview")
+local fs = require "nixio.fs"
+local uci = require"luci.model.uci".cursor()
+local f, t
+f = SimpleForm("logview")
 f.reset = false
 f.submit = false
 t=f:field(TextValue,"conf")
@@ -12,5 +12,5 @@ t.readonly="readonly"
 local logfile=uci:get("AdGuardHome","AdGuardHome","logfile") or ""
 t.timereplace=(logfile~="syslog" and logfile~="" )
 t.pollcheck=logfile~=""
-fs.writefile("/var/run/lucilogreload","")
+fs.writefile("/var/run/lucilogpos", "0")
 return f

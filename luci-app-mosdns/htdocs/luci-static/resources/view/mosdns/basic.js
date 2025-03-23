@@ -411,7 +411,7 @@ return view.extend({
 			if (configeditor) {
 				var editorContent = configeditor.getValue();
 				if (editorContent === formvalue) {
-					return;
+					return window.location.reload();
 				}
 				return fs.write('/etc/mosdns/config_custom.yaml', editorContent.trim().replace(/\r\n/g, '\n') + '\n')
 					.then(function (i) {

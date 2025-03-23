@@ -3,8 +3,6 @@
 . /usr/share/openclash/ruby.sh
 . /usr/share/openclash/openclash_ps.sh
 . /usr/share/openclash/log.sh
-. /lib/functions/procd.sh
-. /usr/share/openclash/openclash_curl.sh
 
 set_lock() {
    exec 889>"/tmp/lock/openclash_subs.lock" 2>/dev/null
@@ -13,10 +11,8 @@ set_lock() {
 
 del_lock() {
    flock -u 889 2>/dev/null
-   rm -rf "/tmp/lock/openclash_subs.lock" 2>/dev/null
+   rm -rf "/tmp/lock/openclash_subs.lock"
 }
-
-set_lock
 
 LOGTIME=$(echo $(date "+%Y-%m-%d %H:%M:%S"))
 LOG_FILE="/tmp/openclash.log"
@@ -30,6 +26,7 @@ CLASH="/etc/openclash/clash"
 CLASH_CONFIG="/etc/openclash"
 restart=0
 only_download=0
+set_lock
 
 urlencode() {
    if [ "$#" -eq 1 ]; then
@@ -37,7 +34,12 @@ urlencode() {
    fi
 }
 
-kill_streaming_unlock() {
+kill_watchdog() {
+   watchdog_pids=$(unify_ps_pids "openclash_watchdog.sh")
+   for watchdog_pid in $watchdog_pids; do
+      kill -9 "$watchdog_pid" >/dev/null 2>&1
+   done
+   
    streaming_unlock_pids=$(unify_ps_pids "openclash_streaming_unlock.lua")
    for streaming_unlock_pid in $streaming_unlock_pids; do
       kill -9 "$streaming_unlock_pid" >/dev/null 2>&1
@@ -48,7 +50,8 @@ config_test()
 {
    if [ -f "$CLASH" ]; then
       LOG_OUT "Config File Download Successful, Test If There is Any Errors..."
-      test_info=$($CLASH -t -d $CLASH_CONFIG -f "$CFG_FILE")
+      chmod o+w "$CFG_FILE" 2>/dev/null
+      test_info=$(nohup $CLASH -t -d $CLASH_CONFIG -f "$CFG_FILE")
       local IFS=$'\n'
       for i in $test_info; do
          if [ -n "$(echo "$i" |grep "configuration file")" ]; then
@@ -68,23 +71,15 @@ config_test()
 
 config_download()
 {
-LOG_OUT "Tip: Config File【$name】Downloading User-Agent【$sub_ua】..."
 if [ -n "$subscribe_url_param" ]; then
    if [ -n "$c_address" ]; then
-      LOG_INFO "Tip: Config File【$name】Downloading URL【$c_address$subscribe_url_param】..."
-      DOWNLOAD_URL="${c_address}${subscribe_url_param}"
-      DOWNLOAD_PARAM="$sub_ua"
+      curl -SsL --connect-timeout 30 -m 60 --speed-time 30 --speed-limit 1 --retry 2 -H "$sub_ua" "$c_address""$subscribe_url_param" -o "$CFG_FILE" 2>&1 |sed ':a;N;$!ba; s/\n/ /g' | awk -v time="$(date "+%Y-%m-%d %H:%M:%S")" -v file="$CFG_FILE" '{print time "【" file "】Download Failed:【"$0"】"}' >> "$LOG_FILE"
    else
-      LOG_INFO "Tip: Config File【$name】Downloading URL【https://api.dler.io/sub$subscribe_url_param】..."
-      DOWNLOAD_URL="https://api.dler.io/sub${subscribe_url_param}"
-      DOWNLOAD_PARAM="$sub_ua"
+      curl -SsL --connect-timeout 30 -m 60 --speed-time 30 --speed-limit 1 --retry 2 -H "$sub_ua" https://api.dler.io/sub"$subscribe_url_param" -o "$CFG_FILE" 2>&1 |sed ':a;N;$!ba; s/\n/ /g' | awk -v time="$(date "+%Y-%m-%d %H:%M:%S")" -v file="$CFG_FILE" '{print time "【" file "】Download Failed:【"$0"】"}' >> "$LOG_FILE"
    fi
 else
-   LOG_INFO "Tip: Config File【$name】Downloading URL【$subscribe_url】..."
-   DOWNLOAD_URL="${subscribe_url}"
-   DOWNLOAD_PARAM="$sub_ua"
+   curl -SsL --connect-timeout 30 -m 60 --speed-time 30 --speed-limit 1 --retry 2 -H "$sub_ua" "$subscribe_url" -o "$CFG_FILE" 2>&1 |sed ':a;N;$!ba; s/\n/ /g' | awk -v time="$(date "+%Y-%m-%d %H:%M:%S")" -v file="$CFG_FILE" '{print time "【" file "】Download Failed:【"$0"】"}' >> "$LOG_FILE"
 fi
-DOWNLOAD_FILE_CURL "$DOWNLOAD_URL" "$CFG_FILE" "$DOWNLOAD_PARAM"
 }
 
 config_cus_up()
@@ -105,63 +100,44 @@ config_cus_up()
 	      LOG_OUT "Config File【$name】is Replaced Successfully, Start Picking Nodes..."	      
 	      ruby -ryaml -rYAML -I "/usr/share/openclash" -E UTF-8 -e "
 	      begin
-            threads = [];
 	         Value = YAML.load_file('$CONFIG_FILE');
 	         if Value.has_key?('proxies') and not Value['proxies'].to_a.empty? then
 	            Value['proxies'].reverse.each{
 	            |x|
-                  if not '$key_match_param'.empty? then
-                     threads << Thread.new {
-                        if not /$key_match_param/i =~ x['name'] then
-                           Value['proxies'].delete(x)
-                           Value['proxy-groups'].each{
-                              |g|
-                              g['proxies'].reverse.each{
-                                 |p|
-                                 if p == x['name'] then
-                                    g['proxies'].delete(p)
-                                 end;
-                              };
-                           };
-                        end;
-                     };
-                  end;
-                  if not '$key_ex_match_param'.empty? then
-                     threads << Thread.new {
-                        if /$key_ex_match_param/i =~ x['name'] then
-                           if Value['proxies'].include?(x) then
-                              Value['proxies'].delete(x)
-                              Value['proxy-groups'].each{
-                                 |g|
-                                 g['proxies'].reverse.each{
-                                    |p|
-                                    if p == x['name'] then
-                                       g['proxies'].delete(p)
-                                    end;
-                                 };
-                              };
-                           end;
-                        end;
-                     };
-                  end;
-	            };
+	            if not '$key_match_param'.empty? then
+	               if not /$key_match_param/i =~ x['name'] then
+	                  Value['proxies'].delete(x)
+	                  Value['proxy-groups'].each{
+	                     |g|
+	                     g['proxies'].reverse.each{
+	                        |p|
+	                        if p == x['name'] then
+	                           g['proxies'].delete(p)
+	                        end
+	                     }
+	                  }
+	               end
+	            end;
+	            if not '$key_ex_match_param'.empty? then
+	               if /$key_ex_match_param/i =~ x['name'] then
+	                  if Value['proxies'].include?(x) then
+	                     Value['proxies'].delete(x)
+	                     Value['proxy-groups'].each{
+	                        |g|
+	                        g['proxies'].reverse.each{
+	                           |p|
+	                           if p == x['name'] then
+	                              g['proxies'].delete(p)
+	                           end
+	                        }
+	                     }
+	                  end
+	               end
+	            end;
+	            }
 	         end;
-            if Value.key?('proxy-providers') and not Value['proxy-providers'].nil? then
-               Value['proxy-providers'].values.each do
-                  |i|
-                  threads << Thread.new {
-                     if not '$key_match_param'.empty? then
-                        i['filter'] = '(?i)$key_match_param';
-                     end;
-                     if not '$key_ex_match_param'.empty? then
-                        i['exclude-filter'] = '(?i)$key_ex_match_param';
-                     end;
-                  };
-               end;
-            end;
-            threads.each(&:join);
 	      rescue Exception => e
-	         YAML.LOG('Error: Filter Proxies Failed,【' + e.message + '】');
+	         puts '${LOGTIME} Error: Filter Proxies Failed,【' + e.message + '】'
 	      ensure
 	         File.open('$CONFIG_FILE','w') {|f| YAML.dump(Value, f)};
 	      end" 2>/dev/null >> $LOG_FILE
@@ -256,15 +232,45 @@ change_dns()
 {
    if pidof clash >/dev/null; then
       /etc/init.d/openclash reload "restore" >/dev/null 2>&1
-      procd_send_signal "openclash" "openclash-watchdog" CONT
+      [ "$(unify_ps_status "openclash_watchdog.sh")" -eq 0 ] && [ "$(unify_ps_prevent)" -eq 0 ] && nohup /usr/share/openclash/openclash_watchdog.sh &
    fi
+}
+
+field_name_check()
+{
+   #检查field名称（不兼容旧写法）
+   ruby -ryaml -rYAML -I "/usr/share/openclash" -E UTF-8 -e "
+      Value = YAML.load_file('$CFG_FILE');
+      if Value.key?('Proxy') or Value.key?('Proxy Group') or Value.key?('Rule') or Value.key?('rule-provider') then
+         if Value.key?('Proxy') then
+            Value['proxies'] = Value['Proxy']
+            Value.delete('Proxy')
+            puts '${LOGTIME} Warning: Proxy is no longer used. Auto replaced by proxies'
+         end
+         if Value.key?('Proxy Group') then
+            Value['proxy-groups'] = Value['Proxy Group']
+            Value.delete('Proxy Group')
+            puts '${LOGTIME} Warning: Proxy Group is no longer used. Auto replaced by proxy-groups'
+         end
+         if Value.key?('Rule') then
+            Value['rules'] = Value['Rule']
+            Value.delete('Rule')
+            puts '${LOGTIME} Warning: Rule is no longer used. Auto replaced by rules'
+         end
+         if Value.key?('rule-provider') then
+            Value['rule-providers'] = Value['rule-provider']
+            Value.delete('rule-provider')
+             puts '${LOGTIME} Warning: rule-provider is no longer used. Auto replaced by rule-providers'
+         end;
+         File.open('$CFG_FILE','w') {|f| YAML.dump(Value, f)};
+      end;
+   " 2>/dev/null >> $LOG_FILE
 }
 
 config_download_direct()
 {
    if pidof clash >/dev/null && [ "$router_self_proxy" = 1 ]; then
-      kill_streaming_unlock
-      procd_send_signal "openclash" "openclash-watchdog" STOP
+      kill_watchdog
       /etc/init.d/openclash reload "revert" >/dev/null 2>&1
       sleep 3
 
@@ -285,7 +291,7 @@ config_download_direct()
          begin
          YAML.load_file('$CFG_FILE');
          rescue Exception => e
-         YAML.LOG('Error: Unable To Parse Config File,【' + e.message + '】');
+         puts '${LOGTIME} Error: Unable To Parse Config File,【' + e.message + '】'
          system 'rm -rf ${CFG_FILE} 2>/dev/null'
          end
          " 2>/dev/null >> $LOG_FILE
@@ -299,9 +305,15 @@ config_download_direct()
             change_dns
             config_error
          elif ! "$(ruby_read "$CFG_FILE" ".key?('proxies')")" && ! "$(ruby_read "$CFG_FILE" ".key?('proxy-providers')")" ; then
-            LOG_OUT "Error: Updated Config【$name】Has No Proxy Field, Update Exit..."
-            change_dns
-            config_error
+            field_name_check
+            if ! "$(ruby_read "$CFG_FILE" ".key?('proxies')")" && ! "$(ruby_read "$CFG_FILE" ".key?('proxy-providers')")" ; then
+               LOG_OUT "Error: Updated Config【$name】Has No Proxy Field, Update Exit..."
+               change_dns
+               config_error
+            else
+               change_dns
+               config_su_check
+            fi
          else
             change_dns
             config_su_check
@@ -361,11 +373,7 @@ convert_custom_param()
       return
    fi
    local p_name="${1%%=*}" p_value="${1#*=}"
-   if [ -z "$append_custom_params" ]; then
-      append_custom_params="&${p_name}=$(urlencode "$p_value")"
-   else
-      append_custom_params="${append_custom_params}\`$(urlencode "$p_value")"
-   fi
+   append_custom_params="${append_custom_params}&${p_name}=$(urlencode "$p_value")"
 }
 
 sub_info_get()
@@ -387,16 +395,10 @@ sub_info_get()
    config_get "rule_provider" "$section" "rule_provider" ""
    config_get "custom_template_url" "$section" "custom_template_url" ""
    config_get "de_ex_keyword" "$section" "de_ex_keyword" ""
-   config_get "sub_ua" "$section" "sub_ua" "clash.meta"
+   config_get "sub_ua" "$section" "sub_ua" "Clash"
    
    if [ "$enabled" -eq 0 ]; then
-      if [ -n "$2" ]; then
-         if [ "$2" != "$CONFIG_FILE" ] && [ "$2" != "$name" ]; then
-            return
-         fi
-      else
-         return
-      fi
+      return
    fi
    
    if [ -z "$address" ]; then
@@ -407,6 +409,10 @@ sub_info_get()
       udp="&udp=true"
    else
       udp=""
+   fi
+
+   if [ -n "$sub_ua" ]; then
+      sub_ua="User-Agent: $sub_ua"
    fi
    
    if [ "$rule_provider" == "true" ]; then
@@ -424,7 +430,7 @@ sub_info_get()
       BACKPACK_FILE="/etc/openclash/backup/$name.yaml"
    fi
 
-   if [ -n "$2" ] && [ "$2" != "$CONFIG_FILE" ] && [ "$2" != "$name" ]; then
+   if [ -n "$2" ] && [ "$2" != "$CONFIG_FILE" ]; then
       return
    fi
    
@@ -488,7 +494,7 @@ sub_info_get()
       begin
       YAML.load_file('$CFG_FILE');
       rescue Exception => e
-      YAML.LOG('Error: Unable To Parse Config File,【' + e.message + '】');
+      puts '${LOGTIME} Error: Unable To Parse Config File,【' + e.message + '】'
       system 'rm -rf ${CFG_FILE} 2>/dev/null'
       end
       " 2>/dev/null >> $LOG_FILE
@@ -500,8 +506,13 @@ sub_info_get()
          LOG_OUT "Config File Format Validation Failed, Trying To Download Without Agent..."
          config_download_direct
       elif ! "$(ruby_read "$CFG_FILE" ".key?('proxies')")" && ! "$(ruby_read "$CFG_FILE" ".key?('proxy-providers')")" ; then
+         field_name_check
+         if ! "$(ruby_read "$CFG_FILE" ".key?('proxies')")" && ! "$(ruby_read "$CFG_FILE" ".key?('proxy-providers')")" ; then
             LOG_OUT "Error: Updated Config【$name】Has No Proxy Field, Trying To Download Without Agent..."
             config_download_direct
+         else
+            config_su_check
+         fi
       else
          config_su_check
       fi
@@ -517,13 +528,13 @@ config_foreach sub_info_get "config_subscribe" "$1"
 uci -q delete openclash.config.config_update_path
 uci commit openclash
 
-if [ "$restart" -eq 1 ] && [ "$(unify_ps_prevent)" -eq 0 ]; then
+if [ "$restart" -eq 1 ] && [ "$(unify_ps_prevent)" -eq 0 ] && [ "$(find /tmp/lock/ |grep -v "openclash.lock" |grep -c "openclash")" -le 1 ]; then
    /etc/init.d/openclash restart >/dev/null 2>&1 &
-elif [ "$restart" -eq 0 ] && [ "$(unify_ps_prevent)" -eq 0 ] && [ "$(uci -q get openclash.config.restart)" -eq 1 ]; then
+elif [ "$restart" -eq 0 ] && [ "$(unify_ps_prevent)" -eq 0 ] && [ "$(find /tmp/lock/ |grep -v "openclash.lock" |grep -c "openclash")" -le 1 ] && [ "$(uci -q get openclash.config.restart)" -eq 1 ]; then
    /etc/init.d/openclash restart >/dev/null 2>&1 &
    uci -q set openclash.config.restart=0
    uci -q commit openclash
-elif [ "$restart" -eq 1 ] && [ "$(unify_ps_prevent)" -eq 0 ]; then
+elif [ "$restart" -eq 1 ] && [ "$(unify_ps_prevent)" -eq 0 ] && [ "$(find /tmp/lock/ |grep -v "openclash.lock" |grep -c "openclash")" -gt 1 ]; then
    uci -q set openclash.config.restart=1
    uci -q commit openclash
 else

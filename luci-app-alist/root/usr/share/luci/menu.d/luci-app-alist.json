@@ -1,14 +1,7 @@
 {
-	"admin/nas": {
-		"title": "NAS",
-		"order": 44,
-		"action": {
-			"type": "firstchild"
-		}
-	},
-	"admin/nas/alist": {
-		"title": "Alist",
-		"order": 20,
+	"admin/services/alist": {
+		"title": "AList",
+		"order": 10,
 		"action": {
 			"type": "firstchild"
 		},
@@ -17,20 +10,20 @@
 			"uci": { "alist": true }
 		}
 	},
-	"admin/nas/alist/basic": {
-		"title": "Setting",
-		"order": 30,
+	"admin/services/alist/config": {
+		"title": "Settings",
+		"order": 10,
 		"action": {
 			"type": "view",
-			"path": "alist/basic"
+			"path": "alist/config"
 		}
 	},
-	"admin/nas/alist/logs": {
-		"title": "Logs",
-		"order": 40,
+	"admin/services/alist/log": {
+		"title": "Log",
+		"order": 20,
 		"action": {
 			"type": "view",
-			"path": "alist/logs"
+			"path": "alist/log"
 		}
 	}
 }

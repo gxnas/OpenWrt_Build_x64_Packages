@@ -350,18 +350,17 @@ parse_doh() {
 get_geoip() {
 	local geoip_code="$1"
 	local geoip_type_flag=""
-	local geoip_path="${V2RAY_LOCATION_ASSET%*/}/geoip.dat"
-	[ -s "$geoip_path" ] || { echo ""; return 1; }
+	local geoip_path="$(config_t_get global_rules v2ray_location_asset)"
+	geoip_path="${geoip_path%*/}/geoip.dat"
+	[ -s "$geoip_path" ] || { echo ""; return; }
 	case "$2" in
 		"ipv4") geoip_type_flag="-ipv6=false" ;;
 		"ipv6") geoip_type_flag="-ipv4=false" ;;
 	esac
 	if type geoview &> /dev/null; then
 		geoview -input "$geoip_path" -list "$geoip_code" $geoip_type_flag -lowmem=true
-		return 0
 	else
 		echo ""
-		return 1
 	fi
 }
 
@@ -408,7 +407,7 @@ run_ipt2socks() {
 		flag="${flag}_TCP_UDP"
 	;;
 	esac
-	_extra_param="${_extra_param} -n 65535 -v"
+	_extra_param="${_extra_param} -v"
 	ln_run "$(first_type ipt2socks)" "ipt2socks_${flag}" $log_file -l $local_port -b 0.0.0.0 -s $socks_address -p $socks_port ${_extra_param}
 }
 
@@ -620,7 +619,7 @@ run_socks() {
 
 	if [ "$type" == "sing-box" ] || [ "$type" == "xray" ]; then
 		local protocol=$(config_n_get $node protocol)
-		if [ "$protocol" == "_balancing" ] || [ "$protocol" == "_shunt" ] || [ "$protocol" == "_iface" ] || [ "$protocol" == "_urltest" ]; then
+		if [ "$protocol" == "_balancing" ] || [ "$protocol" == "_shunt" ] || [ "$protocol" == "_iface" ]; then
 			unset error_msg
 		fi
 	fi
@@ -776,8 +775,8 @@ run_redir() {
 		sing-box)
 			local protocol=$(config_n_get $node protocol)
 			[ "$protocol" = "_shunt" ] && {
-				local geoip_path="${V2RAY_LOCATION_ASSET%*/}/geoip.dat"
-				local geosite_path="${V2RAY_LOCATION_ASSET%*/}/geosite.dat"
+				local geoip_path="$(config_t_get global_singbox geoip_path)"
+				local geosite_path="$(config_t_get global_singbox geosite_path)"
 				if [ ! -s "$geoip_path" ] || [ ! -s "$geosite_path" ]; then
 					echolog "* 缺少Geo规则文件，UDP Sing-Box分流节点无法正常使用！"
 				fi
@@ -787,8 +786,9 @@ run_redir() {
 		xray)
 			local protocol=$(config_n_get $node protocol)
 			[ "$protocol" = "_shunt" ] && {
-				local geoip_path="${V2RAY_LOCATION_ASSET%*/}/geoip.dat"
-				local geosite_path="${V2RAY_LOCATION_ASSET%*/}/geosite.dat"
+				local geo_path="$(config_t_get global_rules v2ray_location_asset)"
+				local geoip_path="${geo_path%*/}/geoip.dat"
+				local geosite_path="${geo_path%*/}/geosite.dat"
 				if [ ! -s "$geoip_path" ] || [ ! -s "$geosite_path" ]; then
 					echolog "* 缺少Geo规则文件，UDP Xray分流节点无法正常使用！"
 				fi
@@ -893,8 +893,8 @@ run_redir() {
 			}
 
 			[ "$protocol" = "_shunt" ] && {
-				local geoip_path="${V2RAY_LOCATION_ASSET%*/}/geoip.dat"
-				local geosite_path="${V2RAY_LOCATION_ASSET%*/}/geosite.dat"
+				local geoip_path="$(config_t_get global_singbox geoip_path)"
+				local geosite_path="$(config_t_get global_singbox geosite_path)"
 				if [ ! -s "$geoip_path" ] || [ ! -s "$geosite_path" ]; then
 					echolog "* 缺少Geo规则文件，TCP Sing-Box分流节点无法正常使用！"
 				fi
@@ -979,8 +979,9 @@ run_redir() {
 			}
 
 			[ "$protocol" = "_shunt" ] && {
-				local geoip_path="${V2RAY_LOCATION_ASSET%*/}/geoip.dat"
-				local geosite_path="${V2RAY_LOCATION_ASSET%*/}/geosite.dat"
+				local geo_path="$(config_t_get global_rules v2ray_location_asset)"
+				local geoip_path="${geo_path%*/}/geoip.dat"
+				local geosite_path="${geo_path%*/}/geosite.dat"
 				if [ ! -s "$geoip_path" ] || [ ! -s "$geosite_path" ]; then
 					echolog "* 缺少Geo规则文件，TCP Xray分流节点无法正常使用！"
 				fi
@@ -1924,7 +1925,6 @@ acl_app() {
 								if [ -n "${type}" ] && ([ "${type}" = "sing-box" ] || [ "${type}" = "xray" ]); then
 									config_file="acl/${tcp_node}_TCP_${redir_port}.json"
 									_extra_param="socks_address=127.0.0.1 socks_port=$socks_port"
-									_extra_param="${_extra_param} tcp_proxy_way=$TCP_PROXY_WAY"
 									if [ "$dns_mode" = "sing-box" ] || [ "$dns_mode" = "xray" ]; then
 										dns_port=$(get_new_port $(expr $dns_port + 1))
 										_dns_port=$dns_port
