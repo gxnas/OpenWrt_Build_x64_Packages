@@ -10,7 +10,7 @@ LUCI_TITLE:=ARP Binding
 LUCI_DEPENDS:=+ip
 LUCI_PKGARCH:=all
 PKG_VERSION:=1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 include ../../luci.mk
 

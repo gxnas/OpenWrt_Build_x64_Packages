@@ -5,7 +5,7 @@ LUCI_DEPENDS:=+uugamebooster
 LUCI_PKGARCH:=all
 
 PKG_NAME:=luci-app-uugamebooster
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 include ../../luci.mk
 
