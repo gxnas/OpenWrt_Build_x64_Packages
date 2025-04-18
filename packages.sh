@@ -27,7 +27,7 @@ rm -rf luci
 git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon
 git clone --depth 1 https://github.com/sirpdboy/luci-app-partexp
 git clone --depth 1 https://github.com/sbwml/v2ray-geodata
-git clone --depth 1 https://github.com/immortalwrt/homeproxy
+git clone --depth 1 https://github.com/immortalwrt/homeproxy && mv -n luci-app-homeproxy
 git clone --depth 1 https://github.com/tty228/luci-app-wechatpush
 git clone --depth 1 https://github.com/sirpdboy/luci-app-poweroffdevice
 git clone --depth 1 https://github.com/BROBIRD/openwrt-r8168
